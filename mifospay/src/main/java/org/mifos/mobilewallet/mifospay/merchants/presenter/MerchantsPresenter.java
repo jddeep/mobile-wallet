@@ -1,5 +1,6 @@
 package org.mifos.mobilewallet.mifospay.merchants.presenter;
 
+
 import org.mifos.mobilewallet.core.base.TaskLooper;
 import org.mifos.mobilewallet.core.base.UseCase;
 import org.mifos.mobilewallet.core.base.UseCaseFactory;
@@ -15,12 +16,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-/**
- * This class is the Presenter component of the Architecture.
- * @author ankur
- * @since 11/July/2018
- */
-
 public class MerchantsPresenter implements MerchantsContract.MerchantsPresenter {
 
     private final UseCaseHandler mUseCaseHandler;
@@ -33,6 +28,7 @@ public class MerchantsPresenter implements MerchantsContract.MerchantsPresenter 
 
     @Inject
     UseCaseFactory mUseCaseFactory;
+    private Boolean isMerchantListEmpty = true;
 
     @Inject
     public MerchantsPresenter(UseCaseHandler useCaseHandler) {
@@ -45,17 +41,27 @@ public class MerchantsPresenter implements MerchantsContract.MerchantsPresenter 
         mMerchantsView.setPresenter(this);
     }
 
-    /**
-     * An overridden method from Contract to fetch merchants using UseCase Callbacks.
-     */
     @Override
     public void fetchMerchants() {
+        mMerchantsView.showMerchantFetchProcess();
         mUseCaseHandler.execute(mFetchMerchantsUseCase,
                 new FetchMerchants.RequestValues(),
                 new UseCase.UseCaseCallback<FetchMerchants.ResponseValue>() {
                     @Override
                     public void onSuccess(FetchMerchants.ResponseValue response) {
-                        retreiveMerchantsData(response.getSavingsWithAssociationsList());
+
+                        //TODO removing this for now to avoid too many api calls
+//                        retreiveMerchantsData(response.getSavingsWithAssociationsList());
+
+                        List<SavingsWithAssociations> savingsWithAssociationsList =
+                                response.getSavingsWithAssociationsList();
+
+                        mMerchantsView.listMerchantsData(savingsWithAssociationsList);
+                        if (savingsWithAssociationsList.size() == 0) {
+                            mMerchantsView.showEmptyStateView();
+                        } else {
+                            mMerchantsView.showMerchants();
+                        }
                     }
 
                     @Override
@@ -65,10 +71,6 @@ public class MerchantsPresenter implements MerchantsContract.MerchantsPresenter 
                 });
     }
 
-    /**
-     * A method to fetch Merchants and Send them to UI Component.
-     * @param savingsWithAssociationsList : List to fetch the client details.
-     */
     private void retreiveMerchantsData(
             final List<SavingsWithAssociations> savingsWithAssociationsList) {
 
@@ -86,14 +88,18 @@ public class MerchantsPresenter implements MerchantsContract.MerchantsPresenter 
                     R response) {
                 FetchClientDetails.ResponseValue responseValue =
                         (FetchClientDetails.ResponseValue) response;
-                int index = taskData.getTaskId();
-                savingsWithAssociationsList.get(index).setExternalId(
+                savingsWithAssociationsList.get(taskData.getTaskId()).setExternalId(
                         responseValue.getClient().getExternalId());
             }
 
             @Override
             public void onComplete() {
-                mMerchantsView.listMerchants(savingsWithAssociationsList);
+                mMerchantsView.listMerchantsData(savingsWithAssociationsList);
+                if (savingsWithAssociationsList.size() == 0) {
+                    mMerchantsView.showEmptyStateView();
+                } else {
+                    mMerchantsView.showMerchants();
+                }
             }
 
             @Override
